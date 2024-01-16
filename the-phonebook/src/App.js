@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import Filter from "./components/Filter";
 import Person from "./components/Person";
+import Form from "./components/Form";
+import personServices from "./services/persons";
 
 const App = () => {
   const [persons, setPersons] = useState([]);
-  const [newName, setNewName] = useState("");
-  const [newNumber, setNewNumber] = useState("");
+  const [newPerson, setNewPerson] = useState({ newName: "", newNumber: "" });
   const [filteredPerson, setFilteredPerson] = useState(persons);
 
   useEffect(() => {
-    axios.get("http://localhost:3001/persons").then((response) => {
+    personServices.getAll().then((response) => {
       setPersons(response.data);
     });
   }, []);
@@ -24,45 +24,46 @@ const App = () => {
   const addNewPerson = (event) => {
     event.preventDefault();
     const personObject = {
-      name: newName,
-      number: newNumber,
-      id: newName,
+      name: newPerson.newName,
+      number: newPerson.newNumber,
+      id: newPerson.newName,
     };
 
-    const isAdded = persons.find(({ name }) => name === newName);
-    console.log(persons.find(({ name }) => name === newName));
+    const personIsAdded = persons.find(
+      ({ name }) => name === newPerson.newName
+    );
+    console.log(persons.find(({ name }) => name === newPerson.newName));
 
-    if (isAdded) {
-      alert(`${personObject.name} is already added to the phonebook`);
+    if (personIsAdded) {
+      const message = `${personObject.name} is already added to the phonebook, replace old number with a new one?`;
+      if (window.confirm(message) === true) {
+        const updatedPerson = {
+          ...personIsAdded,
+          number: personObject.number,
+        }
+        const updatedId=personIsAdded.id
+        personServices.update(updatedId,updatedPerson)
+        .then(response => {
+          setPersons(persons.map(person=> person.id!==updatedId ? person : response.data))
+        })
+      }
     } else {
-      axios
-        .post("http://localhost:3001/persons", personObject)
-        .then((response) => {
-          console.log(response);
-          setPersons(persons.concat(response.data));
-        });
-      setNewName("");
-      setNewNumber("");
+      personServices.create(personObject).then((response) => {
+        console.log(response);
+        setPersons(persons.concat(response.data));
+      });
+      setNewPerson({ newName: "", newNumber: "" });
     }
   };
 
   const deletePerson = (id) => {
-    const url = `http://localhost:3001/persons/${id}`;
-    const person = persons.find((p) => p.id === id)
-    const message =`Delete ${person.name}`
-    if(window.confirm(message) === true){
-      axios.delete(url).then((response) => {
-        axios.get("http://localhost:3001/persons").then((response) => setPersons(response.data))
+    const person = persons.find((p) => p.id === id);
+    const message = `Delete ${person.name}`;
+    if (window.confirm(message) === true) {
+      personServices.deletePerson(id).then((response) => {
+        personServices.getAll().then((response) => setPersons(response.data));
       });
     }
-  };
-
-  const handleNameChange = (event) => {
-    setNewName(event.target.value);
-  };
-
-  const handleNumberChange = (event) => {
-    setNewNumber(event.target.value);
   };
 
   const handleInputChange = (event) => {
@@ -71,7 +72,6 @@ const App = () => {
       person.name.toLowerCase().includes(inputString)
     );
     setFilteredPerson(filteredName);
-    console.log(filteredName);
   };
 
   return (
@@ -79,19 +79,14 @@ const App = () => {
       <h2>Phonebook</h2>
       <Filter handleChange={handleInputChange}></Filter>
       <h2>add a new</h2>
-      <form onSubmit={addNewPerson}>
-        <div>
-          name: <input value={newName} onChange={handleNameChange} />
-        </div>
-        <div>
-          number: <input value={newNumber} onChange={handleNumberChange} />
-        </div>
-        <div>
-          <button type="submit">add</button>
-        </div>
-      </form>
+      <Form
+        addNewPerson={addNewPerson}
+        setFilteredPerson={setFilteredPerson}
+        newPerson={newPerson}
+        persons={persons}
+        setNewPerson={setNewPerson}
+      ></Form>
       <h2>Numbers</h2>
-      {/* <PersonList persons={filteredPerson}></PersonList> */}
       <ul>
         {filteredPerson.map((person) => (
           <Person

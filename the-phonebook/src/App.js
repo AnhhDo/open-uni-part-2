@@ -3,11 +3,17 @@ import Filter from "./components/Filter";
 import Person from "./components/Person";
 import Form from "./components/Form";
 import personServices from "./services/persons";
+import Notification from "./components/Notification";
+import "./index.css";
 
 const App = () => {
   const [persons, setPersons] = useState([]);
   const [newPerson, setNewPerson] = useState({ newName: "", newNumber: "" });
   const [filteredPerson, setFilteredPerson] = useState(persons);
+  const [notification, setNotification] = useState({
+    content: null,
+    color: "green",
+  });
 
   useEffect(() => {
     personServices.getAll().then((response) => {
@@ -40,20 +46,49 @@ const App = () => {
         const updatedPerson = {
           ...personIsAdded,
           number: personObject.number,
-        }
-        const updatedId=personIsAdded.id
-        personServices.update(updatedId,updatedPerson)
-        .then(response => {
-          setPersons(persons.map(person=> person.id!==updatedId ? person : response.data))
-        })
+        };
+        const updatedId = personIsAdded.id;
+        personServices
+          .update(updatedId, updatedPerson)
+          .then((response) => {
+            setPersons(
+              persons.map((person) =>
+                person.id !== updatedId ? person : response.data
+              )
+            );
+            setNotification({
+              content: `Updated ${personObject.name}`,
+              color: "green",
+            });
+            setTimeout(() => {
+              setNotification({ content: null, color: "green" });
+            }, 3000);
+          })
+          .catch((error) => {
+            setNotification({
+              content: `Person ${personObject.name} was already deleted from the server`,
+              color: "red",
+            });
+            setTimeout(() => {
+              setNotification({ content: null, color: "green" });
+            }, 3000);
+            setPersons(persons.filter((person) => person.id !== updatedId));
+          });
       }
     } else {
       personServices.create(personObject).then((response) => {
         console.log(response);
         setPersons(persons.concat(response.data));
+        setNotification({
+          content: `Added ${personObject.name}`,
+          color: "green",
+        });
+        setTimeout(() => {
+          setNotification({ content: null, color: " green" });
+        }, 3000);
       });
-      setNewPerson({ newName: "", newNumber: "" });
     }
+    setNewPerson({ newName: "", newNumber: "" });
   };
 
   const deletePerson = (id) => {
@@ -77,6 +112,10 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification
+        message={notification.content}
+        color = {notification.color}
+      ></Notification>
       <Filter handleChange={handleInputChange}></Filter>
       <h2>add a new</h2>
       <Form
